@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>问题记录 on JiongHub</title>
+    <link>https://jiongshushu.github.io/tags/%E9%97%AE%E9%A2%98%E8%AE%B0%E5%BD%95/</link>
+    <description>Recent content in 问题记录 on JiongHub</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <copyright>Copyright © 2008–2021, Steve Francia and the Hugo Authors; all rights reserved.</copyright>
+    <lastBuildDate>Fri, 19 Feb 2021 00:00:00 +0000</lastBuildDate><atom:link href="https://jiongshushu.github.io/tags/%E9%97%AE%E9%A2%98%E8%AE%B0%E5%BD%95/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>记一次Sqlalchemy Session问题</title>
+      <link>https://jiongshushu.github.io/post/sqlalchemy_session_leak/</link>
+      <pubDate>Fri, 19 Feb 2021 00:00:00 +0000</pubDate>
+      
+      <guid>https://jiongshushu.github.io/post/sqlalchemy_session_leak/</guid>
+      <description>
+        
+          &lt;p&gt;在一次更新中，我们优化了线上查询大数据量数据库记录的接口，将原来的串行查询，改成了多线程并发查询。上线后发现，日志偶尔会出现&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;Instance XXX is not bound to a Session; attribute refresh operation cannot proceed&lt;/code&gt;&lt;/p&gt;
+&lt;h2 id=&#34;复现&#34;&gt;复现&lt;/h2&gt;
+&lt;p&gt;因在线下回归测试的过程中，并没有出现类似的问题。所以初步怀疑是在多并发访问的时候才会出现这种场景。因此，在线下构建复现环境。&lt;/p&gt;
+&lt;p&gt;测试代码如下：&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-fallback&#34; data-lang=&#34;fallback&#34;&gt;&lt;span class=&#34;ln&#34;&gt; 1&lt;/span&gt;import gevent
+&lt;span class=&#34;ln&#34;&gt; 2&lt;/span&gt;from gevent import monkey
+&lt;span class=&#34;ln&#34;&gt; 3&lt;/span&gt;
+&lt;span class=&#34;ln&#34;&gt; 4&lt;/span&gt;import threading
+&lt;span class=&#34;ln&#34;&gt; 5&lt;/span&gt;
+&lt;span class=&#34;ln&#34;&gt; 6&lt;/span&gt;monkey.patch_all()
+&lt;span class=&#34;ln&#34;&gt; 7&lt;/span&gt;
+&lt;span class=&#34;ln&#34;&gt; 8&lt;/span&gt;with app.test_client() as c:
+&lt;span class=&#34;ln&#34;&gt; 9&lt;/span&gt;    def _exec(_id):
+&lt;span class=&#34;ln&#34;&gt;10&lt;/span&gt;        req_data = {
+&lt;span class=&#34;ln&#34;&gt;11&lt;/span&gt;			...
+&lt;span class=&#34;ln&#34;&gt;12&lt;/span&gt;        }
+&lt;span class=&#34;ln&#34;&gt;13&lt;/span&gt;        rv = c.post(&amp;#39;/api/v1/A&amp;#39;, json=req_data)
+&lt;span class=&#34;ln&#34;&gt;14&lt;/span&gt;        print(rv.get_json())
+&lt;span class=&#34;ln&#34;&gt;15&lt;/span&gt;        assert rv.status_code == 200
+&lt;span class=&#34;ln&#34;&gt;16&lt;/span&gt;
+&lt;span class=&#34;ln&#34;&gt;17&lt;/span&gt;    ts = []
+&lt;span class=&#34;ln&#34;&gt;18&lt;/span&gt;    for i in range(2):
+&lt;span class=&#34;ln&#34;&gt;19&lt;/span&gt;        ts.append(gevent.spawn(_exec, i))
+&lt;span class=&#34;ln&#34;&gt;20&lt;/span&gt;
+&lt;span class=&#34;ln&#34;&gt;21&lt;/span&gt;    for t in ts:
+&lt;span class=&#34;ln&#34;&gt;22&lt;/span&gt;        t.join()
+&lt;span class=&#34;ln&#34;&gt;23&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;代码省略了一些业务数据，一些无关的&lt;code&gt;import&lt;/code&gt;和&lt;code&gt;Mock&lt;/code&gt;代码。&lt;/p&gt;
+&lt;p&gt;测试代码模拟的是线上&lt;code&gt;Gunicorn(gevent mode) =&amp;gt; Flask API&lt;/code&gt;这种进线程模型来进行复现.&lt;/p&gt;
+&lt;p&gt;接口&lt;code&gt;A&lt;/code&gt;的概要逻辑如下：&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-fallback&#34; data-lang=&#34;fallback&#34;&gt;&lt;span class=&#34;ln&#34;&gt; 1&lt;/span&gt;1  db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
+&lt;span class=&#34;ln&#34;&gt; 2&lt;/span&gt;2  @blueprint.route(&amp;#34;/A&amp;#34;, methods=[&amp;#34;POST&amp;#34;])
+&lt;span class=&#34;ln&#34;&gt; 3&lt;/span&gt;3  def A(*args, **kwargs):
+&lt;span class=&#34;ln&#34;&gt; 4&lt;/span&gt;4      params = request.get_json()	
+&lt;span class=&#34;ln&#34;&gt; 5&lt;/span&gt;5      valid(params)
+&lt;span class=&#34;ln&#34;&gt; 6&lt;/span&gt;6      b = create_orm_obj_b(params)
+&lt;span class=&#34;ln&#34;&gt; 7&lt;/span&gt;7      db_session.add(b)
+&lt;span class=&#34;ln&#34;&gt; 8&lt;/span&gt;8      multiple_threads_query_database()
+&lt;span class=&#34;ln&#34;&gt; 9&lt;/span&gt;9      try:
+&lt;span class=&#34;ln&#34;&gt;10&lt;/span&gt;10         db_session.commit()
+&lt;span class=&#34;ln&#34;&gt;11&lt;/span&gt;11     except Exception as ex:
+&lt;span class=&#34;ln&#34;&gt;12&lt;/span&gt;12         db_session.rollback()
+&lt;span class=&#34;ln&#34;&gt;13&lt;/span&gt;13         return 500	
+&lt;span class=&#34;ln&#34;&gt;14&lt;/span&gt;14     return 200
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;变更主要改动的地方就在于新增了&lt;strong&gt;第8行&lt;/strong&gt;逻辑。&lt;/p&gt;
+&lt;p&gt;按照上面的测试脚本，开启&lt;strong&gt;两个&lt;/strong&gt;协程并发请求接口。遗憾并不能复现。&lt;/p&gt;
+&lt;p&gt;紧接着猜想是否是协程数不够多，或许将协程的并发度逐步调大，然后看看结果。当并发度开到&lt;strong&gt;3&lt;/strong&gt;的时候，果然，问题就复现了&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;%E8%AE%B0%E4%B8%80%E6%AC%A1Sqlalchemy%20Session%E9%97%AE%E9%A2%98%20d0d20b673c1049f68010d1b6f883a597/Untitled.png&#34; alt=&#34;%E8%AE%B0%E4%B8%80%E6%AC%A1Sqlalchemy%20Session%E9%97%AE%E9%A2%98%20d0d20b673c1049f68010d1b6f883a597/Untitled.png&#34;&gt;&lt;/p&gt;
+&lt;p&gt;将上面测试代码改成&lt;strong&gt;没有 gevent 模式下的纯线程&lt;/strong&gt;试试，不管并发度如何，错误都没有出现&lt;/p&gt;
+&lt;p&gt;因此，可以怀疑的是&lt;code&gt;gevent&lt;/code&gt;协程库的问题&lt;/p&gt;
+&lt;h2 id=&#34;分析&#34;&gt;分析&lt;/h2&gt;
+&lt;p&gt;&lt;a href=&#34;http://sqlalche.me/e/13/bhk3&#34;&gt;http://sqlalche.me/e/13/bhk3&lt;/a&gt; 报错信息的后面，官方解析了报错原因是: 操作的ORM对象(如上诉的&lt;code&gt;b&lt;/code&gt;)已经不和当前的&lt;code&gt;session&lt;/code&gt;关联了, 后续代码存在使用懒加载的形式来加载对象属性。&lt;/p&gt;
+&lt;p&gt;所以问题的关键点就在于: &lt;strong&gt;&lt;code&gt;b&lt;/code&gt;对象在哪一步和当前的&lt;code&gt;session&lt;/code&gt;对象失去关联了？？&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;%E8%AE%B0%E4%B8%80%E6%AC%A1Sqlalchemy%20Session%E9%97%AE%E9%A2%98%20d0d20b673c1049f68010d1b6f883a597/Untitled%201.png&#34; alt=&#34;%E8%AE%B0%E4%B8%80%E6%AC%A1Sqlalchemy%20Session%E9%97%AE%E9%A2%98%20d0d20b673c1049f68010d1b6f883a597/Untitled%201.png&#34;&gt;&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;sqlalchemy.session.add()&lt;/code&gt;这个是将ORM对象和&lt;code&gt;Session&lt;/code&gt;进行关联，与之相反的是&lt;code&gt;sqlalchemy.session.expunge()&lt;/code&gt;操作。&lt;/p&gt;
+&lt;p&gt;但是，很明确地知道，业务代码中没有任何一处的地方显示调用了&lt;code&gt;expunge&lt;/code&gt;。&lt;/p&gt;
+&lt;p&gt;其实，深入研究一下&lt;code&gt;add&lt;/code&gt;的代码。会发现，对象是由Session实例对象的&lt;code&gt;_new&lt;/code&gt;属性中。而&lt;code&gt;_new&lt;/code&gt;属性会在&lt;code&gt;flush&lt;/code&gt;方法最后调用&lt;code&gt;pop&lt;/code&gt;方法来删除ORM对象。&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;%E8%AE%B0%E4%B8%80%E6%AC%A1Sqlalchemy%20Session%E9%97%AE%E9%A2%98%20d0d20b673c1049f68010d1b6f883a597/Untitled%202.png&#34; alt=&#34;%E8%AE%B0%E4%B8%80%E6%AC%A1Sqlalchemy%20Session%E9%97%AE%E9%A2%98%20d0d20b673c1049f68010d1b6f883a597/Untitled%202.png&#34;&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;%E8%AE%B0%E4%B8%80%E6%AC%A1Sqlalchemy%20Session%E9%97%AE%E9%A2%98%20d0d20b673c1049f68010d1b6f883a597/Untitled%203.png&#34; alt=&#34;%E8%AE%B0%E4%B8%80%E6%AC%A1Sqlalchemy%20Session%E9%97%AE%E9%A2%98%20d0d20b673c1049f68010d1b6f883a597/Untitled%203.png&#34;&gt;&lt;/p&gt;
+&lt;p&gt;所以，严重怀疑地是&lt;code&gt;Session&lt;/code&gt;在调用&lt;code&gt;commit()&lt;/code&gt;方法的时候，让&lt;code&gt;b&lt;/code&gt;对象和&lt;code&gt;session&lt;/code&gt;的联系脱节了。(关于&lt;code&gt;flush&lt;/code&gt;和&lt;code&gt;commit&lt;/code&gt;两个操作的关系，可以看看这个链接：&lt;a href=&#34;https://stackoverflow.com/questions/4201455/sqlalchemy-whats-the-difference-between-flush-and-commit&#34;&gt;SQLAlchemy: What&#39;s the difference between flush() and commit()?&lt;/a&gt; , 大概就是commit内部也对调用flush操作)&lt;/p&gt;
+&lt;p&gt;打开&lt;code&gt;DEBUG&lt;/code&gt;日志看看&lt;code&gt;Sqlalchemy&lt;/code&gt;执行SQL日志。&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;%E8%AE%B0%E4%B8%80%E6%AC%A1Sqlalchemy%20Session%E9%97%AE%E9%A2%98%20d0d20b673c1049f68010d1b6f883a597/Untitled%204.png&#34; alt=&#34;%E8%AE%B0%E4%B8%80%E6%AC%A1Sqlalchemy%20Session%E9%97%AE%E9%A2%98%20d0d20b673c1049f68010d1b6f883a597/Untitled%204.png&#34;&gt;&lt;/p&gt;
+&lt;p&gt;果然，在一次事物中，执行了两次插入&lt;code&gt;b&lt;/code&gt;对象的操作。&lt;/p&gt;
+&lt;p&gt;这就可以得出初步的结论：&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;两次接口调用中，使用了相同的Session对象。A1调用在最后commit的时候将A2中的对象b2也一起提交了，最后当b2在使用属性的时候，就会发现b2不在Session的管理中(都flush出去了)&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;%E8%AE%B0%E4%B8%80%E6%AC%A1Sqlalchemy%20Session%E9%97%AE%E9%A2%98%20d0d20b673c1049f68010d1b6f883a597/Untitled%205.png&#34; alt=&#34;%E8%AE%B0%E4%B8%80%E6%AC%A1Sqlalchemy%20Session%E9%97%AE%E9%A2%98%20d0d20b673c1049f68010d1b6f883a597/Untitled%205.png&#34;&gt;&lt;/p&gt;
+&lt;p&gt;上图，在&lt;code&gt;print(b1.id)&lt;/code&gt;的时候，系统就会出错。&lt;/p&gt;
+&lt;p&gt;虽然找到了Object和Session取消关联的原因，但是归根结底，是因为两个协程公用的一个Session。正确的逻辑应该是每一个协程都应该维护自己的对象关系。&lt;/p&gt;
+&lt;p&gt;再来看看&lt;code&gt;Sesseion&lt;/code&gt;的初始化方法&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-fallback&#34; data-lang=&#34;fallback&#34;&gt;&lt;span class=&#34;ln&#34;&gt; 1&lt;/span&gt;db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
+&lt;span class=&#34;ln&#34;&gt; 2&lt;/span&gt;
+&lt;span class=&#34;ln&#34;&gt; 3&lt;/span&gt;class scoped_session(object):
+&lt;span class=&#34;ln&#34;&gt; 4&lt;/span&gt;
+&lt;span class=&#34;ln&#34;&gt; 5&lt;/span&gt;	def __init__(self, session_factory, scopefunc=None):
+&lt;span class=&#34;ln&#34;&gt; 6&lt;/span&gt;	
+&lt;span class=&#34;ln&#34;&gt; 7&lt;/span&gt;		  self.session_factory = session_factory
+&lt;span class=&#34;ln&#34;&gt; 8&lt;/span&gt;
+&lt;span class=&#34;ln&#34;&gt; 9&lt;/span&gt;        if scopefunc:
+&lt;span class=&#34;ln&#34;&gt;10&lt;/span&gt;            self.registry = ScopedRegistry(session_factory, scopefunc)
+&lt;span class=&#34;ln&#34;&gt;11&lt;/span&gt;        else:
+&lt;span class=&#34;ln&#34;&gt;12&lt;/span&gt;            self.registry = ThreadLocalRegistry(session_factory)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;默认情况下，Session使用&lt;code&gt;Thread Local Storage(TLS)&lt;/code&gt;来使每个线程都持有一个独立的&lt;code&gt;Session&lt;/code&gt;, 这就解析为什么在多线程环境下运行测试代码，是没有问题的。&lt;/p&gt;
+&lt;p&gt;而&lt;code&gt;gunicorn&lt;/code&gt;的&lt;code&gt;gevent模式&lt;/code&gt;，在启动阶段，会调用&lt;code&gt;gevent.monkey.patch_all()&lt;/code&gt;方法来覆写&lt;code&gt;TLS =&amp;gt; gevent.local&lt;/code&gt;。&lt;/p&gt;
+&lt;p&gt;我们再来看&lt;code&gt;Session&lt;/code&gt;和&lt;code&gt;gunicorn&lt;/code&gt;的执行顺序&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-fallback&#34; data-lang=&#34;fallback&#34;&gt;&lt;span class=&#34;ln&#34;&gt;1&lt;/span&gt;def main():
+&lt;span class=&#34;ln&#34;&gt;2&lt;/span&gt;
+&lt;span class=&#34;ln&#34;&gt;3&lt;/span&gt;	db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
+&lt;span class=&#34;ln&#34;&gt;4&lt;/span&gt;	
+&lt;span class=&#34;ln&#34;&gt;5&lt;/span&gt;	run_with_gunicorn(flask_app)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;我们可以发现，&lt;code&gt;Session&lt;/code&gt;里面的TLS初始化是&lt;code&gt;threading.local.local&lt;/code&gt;对象，然后gunicorn才运行&lt;code&gt;gevent.monkey.patch_all()&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;在&lt;code&gt;scoped_session&lt;/code&gt;调用前，先PATCH一下&lt;code&gt;gevent&lt;/code&gt;的代码，结果问题彻底解决了。&lt;/p&gt;
+&lt;h2 id=&#34;结论&#34;&gt;结论&lt;/h2&gt;
+&lt;p&gt;在使用&lt;code&gt;Gevent + Sqlalchemy&lt;/code&gt;的时候，需要优先执行&lt;code&gt;gevent.monkey.patch_all()&lt;/code&gt;, 以防在并发逻辑下出现各种奇怪的问题。&lt;/p&gt;
+&lt;p&gt;同时，尽量避免把&lt;code&gt;Session&lt;/code&gt;定义成全局变量来使用。&lt;/p&gt;
+        
+      </description>
+    </item>
+    
+  </channel>
+</rss>
