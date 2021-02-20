@@ -63,7 +63,7 @@
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;变更主要改动的地方就在于新增了&lt;strong&gt;第8行&lt;/strong&gt;逻辑。&lt;/p&gt;
 &lt;p&gt;按照上面的测试脚本，开启&lt;strong&gt;两个&lt;/strong&gt;协程并发请求接口。遗憾并不能复现。&lt;/p&gt;
 &lt;p&gt;紧接着猜想是否是协程数不够多，或许将协程的并发度逐步调大，然后看看结果。当并发度开到&lt;strong&gt;3&lt;/strong&gt;的时候，果然，问题就复现了&lt;/p&gt;
-&lt;p&gt;&lt;img src=&#34;%E8%AE%B0%E4%B8%80%E6%AC%A1Sqlalchemy%20Session%E9%97%AE%E9%A2%98%20d0d20b673c1049f68010d1b6f883a597/Untitled.png&#34; alt=&#34;%E8%AE%B0%E4%B8%80%E6%AC%A1Sqlalchemy%20Session%E9%97%AE%E9%A2%98%20d0d20b673c1049f68010d1b6f883a597/Untitled.png&#34;&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;https://jionghub.ml/post/images/sqlalchemy_session_leak/Untitled.png&#34; alt=&#34;:inline&#34;&gt;&lt;/p&gt;
 &lt;p&gt;将上面测试代码改成&lt;strong&gt;没有 gevent 模式下的纯线程&lt;/strong&gt;试试，不管并发度如何，错误都没有出现&lt;/p&gt;
 &lt;p&gt;因此，可以怀疑的是&lt;code&gt;gevent&lt;/code&gt;协程库的问题&lt;/p&gt;
 &lt;h2 id=&#34;分析&#34;&gt;分析&lt;/h2&gt;

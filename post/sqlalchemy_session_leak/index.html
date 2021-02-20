@@ -48,9 +48,10 @@
   </head>
   
   
+  
     
   
-  <body data-code="7" data-lines="false" id="documentTop">
+  <body data-code="7" data-lines="true" id="documentTop">
 
 <header class="nav_header" >
   <nav class="nav"><a href='https://jionghub.ml/' class="nav_brand nav_item" title="JiongHub">
@@ -175,7 +176,7 @@
 </code></pre></div><p>变更主要改动的地方就在于新增了<strong>第8行</strong>逻辑。</p>
 <p>按照上面的测试脚本，开启<strong>两个</strong>协程并发请求接口。遗憾并不能复现。</p>
 <p>紧接着猜想是否是协程数不够多，或许将协程的并发度逐步调大，然后看看结果。当并发度开到<strong>3</strong>的时候，果然，问题就复现了</p>
-<p><img src="%E8%AE%B0%E4%B8%80%E6%AC%A1Sqlalchemy%20Session%E9%97%AE%E9%A2%98%20d0d20b673c1049f68010d1b6f883a597/Untitled.png" alt="%E8%AE%B0%E4%B8%80%E6%AC%A1Sqlalchemy%20Session%E9%97%AE%E9%A2%98%20d0d20b673c1049f68010d1b6f883a597/Untitled.png"></p>
+<p><img src="/post/images/sqlalchemy_session_leak/Untitled.png" alt=":inline"></p>
 <p>将上面测试代码改成<strong>没有 gevent 模式下的纯线程</strong>试试，不管并发度如何，错误都没有出现</p>
 <p>因此，可以怀疑的是<code>gevent</code>协程库的问题</p>
 <h2 id="分析">分析</h2>
