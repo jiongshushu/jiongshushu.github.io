@@ -2,10 +2,10 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Tags on JiongHub</title>
-    <link>https://jiongshushu.github.io/tags/</link>
+    <link>https://jionghub.ml/tags/</link>
     <description>Recent content in Tags on JiongHub</description>
     <generator>Hugo -- gohugo.io</generator>
     <copyright>Copyright © 2008–2021, Steve Francia and the Hugo Authors; all rights reserved.</copyright>
-    <lastBuildDate>Fri, 19 Feb 2021 00:00:00 +0000</lastBuildDate><atom:link href="https://jiongshushu.github.io/tags/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Fri, 19 Feb 2021 00:00:00 +0000</lastBuildDate><atom:link href="https://jionghub.ml/tags/index.xml" rel="self" type="application/rss+xml" />
   </channel>
 </rss>

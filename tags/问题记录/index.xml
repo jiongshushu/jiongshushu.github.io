@@ -2,17 +2,17 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>问题记录 on JiongHub</title>
-    <link>https://jiongshushu.github.io/tags/%E9%97%AE%E9%A2%98%E8%AE%B0%E5%BD%95/</link>
+    <link>https://jionghub.ml/tags/%E9%97%AE%E9%A2%98%E8%AE%B0%E5%BD%95/</link>
     <description>Recent content in 问题记录 on JiongHub</description>
     <generator>Hugo -- gohugo.io</generator>
     <copyright>Copyright © 2008–2021, Steve Francia and the Hugo Authors; all rights reserved.</copyright>
-    <lastBuildDate>Fri, 19 Feb 2021 00:00:00 +0000</lastBuildDate><atom:link href="https://jiongshushu.github.io/tags/%E9%97%AE%E9%A2%98%E8%AE%B0%E5%BD%95/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Fri, 19 Feb 2021 00:00:00 +0000</lastBuildDate><atom:link href="https://jionghub.ml/tags/%E9%97%AE%E9%A2%98%E8%AE%B0%E5%BD%95/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>记一次Sqlalchemy Session问题</title>
-      <link>https://jiongshushu.github.io/post/sqlalchemy_session_leak/</link>
+      <link>https://jionghub.ml/post/sqlalchemy_session_leak/</link>
       <pubDate>Fri, 19 Feb 2021 00:00:00 +0000</pubDate>
       
-      <guid>https://jiongshushu.github.io/post/sqlalchemy_session_leak/</guid>
+      <guid>https://jionghub.ml/post/sqlalchemy_session_leak/</guid>
       <description>
         
           &lt;p&gt;在一次更新中，我们优化了线上查询大数据量数据库记录的接口，将原来的串行查询，改成了多线程并发查询。上线后发现，日志偶尔会出现&lt;/p&gt;

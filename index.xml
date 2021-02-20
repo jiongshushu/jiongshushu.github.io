@@ -2,17 +2,17 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>JiongHub</title>
-    <link>https://jiongshushu.github.io/</link>
+    <link>https://jionghub.ml/</link>
     <description>Recent content on JiongHub</description>
     <generator>Hugo -- gohugo.io</generator>
     <copyright>Copyright © 2008–2021, Steve Francia and the Hugo Authors; all rights reserved.</copyright>
-    <lastBuildDate>Fri, 19 Feb 2021 00:00:00 +0000</lastBuildDate><atom:link href="https://jiongshushu.github.io/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Fri, 19 Feb 2021 00:00:00 +0000</lastBuildDate><atom:link href="https://jionghub.ml/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>记一次Sqlalchemy Session问题</title>
-      <link>https://jiongshushu.github.io/post/sqlalchemy_session_leak/</link>
+      <link>https://jionghub.ml/post/sqlalchemy_session_leak/</link>
       <pubDate>Fri, 19 Feb 2021 00:00:00 +0000</pubDate>
       
-      <guid>https://jiongshushu.github.io/post/sqlalchemy_session_leak/</guid>
+      <guid>https://jionghub.ml/post/sqlalchemy_session_leak/</guid>
       <description>
         
           &lt;p&gt;在一次更新中，我们优化了线上查询大数据量数据库记录的接口，将原来的串行查询，改成了多线程并发查询。上线后发现，日志偶尔会出现&lt;/p&gt;
@@ -116,10 +116,10 @@
     
     <item>
       <title>Markdown Syntax Guide</title>
-      <link>https://jiongshushu.github.io/post/markdown-syntax/</link>
+      <link>https://jionghub.ml/post/markdown-syntax/</link>
       <pubDate>Mon, 11 Mar 2019 00:00:00 +0000</pubDate>
       
-      <guid>https://jiongshushu.github.io/post/markdown-syntax/</guid>
+      <guid>https://jionghub.ml/post/markdown-syntax/</guid>
       <description>
         
           &lt;p&gt;This article offers a sample of basic Markdown syntax that can be used in Hugo content files, also it shows whether basic HTML elements are decorated with CSS in a Hugo theme.&lt;/p&gt;
