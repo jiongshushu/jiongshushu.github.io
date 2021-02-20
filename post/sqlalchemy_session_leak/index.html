@@ -182,19 +182,19 @@
 <h2 id="分析">分析</h2>
 <p><a href="http://sqlalche.me/e/13/bhk3">http://sqlalche.me/e/13/bhk3</a> 报错信息的后面，官方解析了报错原因是: 操作的ORM对象(如上诉的<code>b</code>)已经不和当前的<code>session</code>关联了, 后续代码存在使用懒加载的形式来加载对象属性。</p>
 <p>所以问题的关键点就在于: <strong><code>b</code>对象在哪一步和当前的<code>session</code>对象失去关联了？？</strong></p>
-<p><img src="%E8%AE%B0%E4%B8%80%E6%AC%A1Sqlalchemy%20Session%E9%97%AE%E9%A2%98%20d0d20b673c1049f68010d1b6f883a597/Untitled%201.png" alt="%E8%AE%B0%E4%B8%80%E6%AC%A1Sqlalchemy%20Session%E9%97%AE%E9%A2%98%20d0d20b673c1049f68010d1b6f883a597/Untitled%201.png"></p>
+<p><img src="/post/images/sqlalchemy_session_leak/Untitled%201.png" alt=":inline"></p>
 <p><code>sqlalchemy.session.add()</code>这个是将ORM对象和<code>Session</code>进行关联，与之相反的是<code>sqlalchemy.session.expunge()</code>操作。</p>
 <p>但是，很明确地知道，业务代码中没有任何一处的地方显示调用了<code>expunge</code>。</p>
 <p>其实，深入研究一下<code>add</code>的代码。会发现，对象是由Session实例对象的<code>_new</code>属性中。而<code>_new</code>属性会在<code>flush</code>方法最后调用<code>pop</code>方法来删除ORM对象。</p>
-<p><img src="%E8%AE%B0%E4%B8%80%E6%AC%A1Sqlalchemy%20Session%E9%97%AE%E9%A2%98%20d0d20b673c1049f68010d1b6f883a597/Untitled%202.png" alt="%E8%AE%B0%E4%B8%80%E6%AC%A1Sqlalchemy%20Session%E9%97%AE%E9%A2%98%20d0d20b673c1049f68010d1b6f883a597/Untitled%202.png"></p>
-<p><img src="%E8%AE%B0%E4%B8%80%E6%AC%A1Sqlalchemy%20Session%E9%97%AE%E9%A2%98%20d0d20b673c1049f68010d1b6f883a597/Untitled%203.png" alt="%E8%AE%B0%E4%B8%80%E6%AC%A1Sqlalchemy%20Session%E9%97%AE%E9%A2%98%20d0d20b673c1049f68010d1b6f883a597/Untitled%203.png"></p>
+<p><img src="/post/images/sqlalchemy_session_leak/Untitled%202.png" alt=":inline"></p>
+<p><img src="/post/images/sqlalchemy_session_leak/Untitled%203.png" alt=":inline"></p>
 <p>所以，严重怀疑地是<code>Session</code>在调用<code>commit()</code>方法的时候，让<code>b</code>对象和<code>session</code>的联系脱节了。(关于<code>flush</code>和<code>commit</code>两个操作的关系，可以看看这个链接：<a href="https://stackoverflow.com/questions/4201455/sqlalchemy-whats-the-difference-between-flush-and-commit">SQLAlchemy: What's the difference between flush() and commit()?</a> , 大概就是commit内部也对调用flush操作)</p>
 <p>打开<code>DEBUG</code>日志看看<code>Sqlalchemy</code>执行SQL日志。</p>
-<p><img src="%E8%AE%B0%E4%B8%80%E6%AC%A1Sqlalchemy%20Session%E9%97%AE%E9%A2%98%20d0d20b673c1049f68010d1b6f883a597/Untitled%204.png" alt="%E8%AE%B0%E4%B8%80%E6%AC%A1Sqlalchemy%20Session%E9%97%AE%E9%A2%98%20d0d20b673c1049f68010d1b6f883a597/Untitled%204.png"></p>
+<p><img src="/post/images/sqlalchemy_session_leak/Untitled%204.png" alt=":inline"></p>
 <p>果然，在一次事物中，执行了两次插入<code>b</code>对象的操作。</p>
 <p>这就可以得出初步的结论：</p>
 <p><strong>两次接口调用中，使用了相同的Session对象。A1调用在最后commit的时候将A2中的对象b2也一起提交了，最后当b2在使用属性的时候，就会发现b2不在Session的管理中(都flush出去了)</strong></p>
-<p><img src="%E8%AE%B0%E4%B8%80%E6%AC%A1Sqlalchemy%20Session%E9%97%AE%E9%A2%98%20d0d20b673c1049f68010d1b6f883a597/Untitled%205.png" alt="%E8%AE%B0%E4%B8%80%E6%AC%A1Sqlalchemy%20Session%E9%97%AE%E9%A2%98%20d0d20b673c1049f68010d1b6f883a597/Untitled%205.png"></p>
+<p><img src="/post/images/sqlalchemy_session_leak/Untitled%205.png" alt=":inline"></p>
 <p>上图，在<code>print(b1.id)</code>的时候，系统就会出错。</p>
 <p>虽然找到了Object和Session取消关联的原因，但是归根结底，是因为两个协程公用的一个Session。正确的逻辑应该是每一个协程都应该维护自己的对象关系。</p>
 <p>再来看看<code>Sesseion</code>的初始化方法</p>
