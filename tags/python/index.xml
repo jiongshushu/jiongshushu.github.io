@@ -2,17 +2,17 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Python on JiongHub</title>
-    <link>https://jiongshushu.github.io/tags/python/</link>
+    <link>https://www.jionghub.ml/tags/python/</link>
     <description>Recent content in Python on JiongHub</description>
     <generator>Hugo -- gohugo.io</generator>
     <copyright>Copyright © 2008–2021, Steve Francia and the Hugo Authors; all rights reserved.</copyright>
-    <lastBuildDate>Fri, 19 Feb 2021 00:00:00 +0000</lastBuildDate><atom:link href="https://jiongshushu.github.io/tags/python/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Fri, 19 Feb 2021 00:00:00 +0000</lastBuildDate><atom:link href="https://www.jionghub.ml/tags/python/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>记一次Sqlalchemy Session问题</title>
-      <link>https://jiongshushu.github.io/post/sqlalchemy_session_leak/</link>
+      <link>https://www.jionghub.ml/post/sqlalchemy_session_leak/</link>
       <pubDate>Fri, 19 Feb 2021 00:00:00 +0000</pubDate>
       
-      <guid>https://jiongshushu.github.io/post/sqlalchemy_session_leak/</guid>
+      <guid>https://www.jionghub.ml/post/sqlalchemy_session_leak/</guid>
       <description>
         
           &lt;p&gt;在一次更新中，我们优化了线上查询大数据量数据库记录的接口，将原来的串行查询，改成了多线程并发查询。上线后发现，日志偶尔会出现&lt;/p&gt;
@@ -63,7 +63,7 @@
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;变更主要改动的地方就在于新增了&lt;strong&gt;第8行&lt;/strong&gt;逻辑。&lt;/p&gt;
 &lt;p&gt;按照上面的测试脚本，开启&lt;strong&gt;两个&lt;/strong&gt;协程并发请求接口。遗憾并不能复现。&lt;/p&gt;
 &lt;p&gt;紧接着猜想是否是协程数不够多，或许将协程的并发度逐步调大，然后看看结果。当并发度开到&lt;strong&gt;3&lt;/strong&gt;的时候，果然，问题就复现了&lt;/p&gt;
-&lt;p&gt;&lt;img src=&#34;https://jiongshushu.github.io/post/images/sqlalchemy_session_leak/Untitled.png&#34; alt=&#34;:inline&#34;&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;https://www.jionghub.ml/post/images/sqlalchemy_session_leak/Untitled.png&#34; alt=&#34;:inline&#34;&gt;&lt;/p&gt;
 &lt;p&gt;将上面测试代码改成&lt;strong&gt;没有 gevent 模式下的纯线程&lt;/strong&gt;试试，不管并发度如何，错误都没有出现&lt;/p&gt;
 &lt;p&gt;因此，可以怀疑的是&lt;code&gt;gevent&lt;/code&gt;协程库的问题&lt;/p&gt;
 &lt;h2 id=&#34;分析&#34;&gt;分析&lt;/h2&gt;
